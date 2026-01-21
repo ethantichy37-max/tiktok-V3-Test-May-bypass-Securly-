@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Mini-FYP</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:system-ui;background:#000;color:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100vh}
+  video{max-width:100%;max-height:100%;border-radius:8px}
+  #bar{position:absolute;bottom:0;left:0;right:0;height:4px;background:rgba(255,255,255,.2)}
+  #prog{height:100%;background:#fff;width:0}
+</style>
+</head>
+<body>
+<video id="v" playsinline autoplay muted loop></video>
+<div id="bar"><div id="prog"></div></div>
+
+<script>
+const COUNT = 10;
+const QUERY  = 'tiktok.com "fyp" filter:links';
+
+// ----- 1. try three mirrors in random order -----
+const INSTANCES = [
+  'https://nitter.it',
+  'https://nitter.pussthecat.org',
+  'https://nitter.poast.org'
+];
+
+let idx = 0, vids = [];
+
+async function fetchFreshList(){
+  // shuffle
+  const urls = INSTANCES.sort(()=>Math.random()-0.5);
+  for(const base of urls){
+    try{
+      const html = await fetch(`${base}/search?q=${encodeURIComponent(QUERY)}`).then(r=>r.text());
+      const mp4s = [...new Set([...html.matchAll(/href="(https:\/\/[^"]*\.mp4[^"]*)"/g)].map(m=>m[1]))];
+      if(mp4s.length) return mp4s.slice(0,COUNT);
+    }catch{/* try next mirror */}
+  }
+  return []; // all mirrors failed
+}
+
+function next(){
+  const el = document.getElementById('v');
+  el.src = vids[idx]; el.play();
+  animateBar(el.duration||10);
+  idx = (idx+1)%vids.length;
+}
+function animateBar(sec){
+  const p=document.getElementById('prog');
+  p.style.transition='none'; p.style.width=0;
+  setTimeout(()=>{p.style.transition=`width ${sec}s linear`; p.style.width='100%';},20);
+}
+addEventListener('keydown',e=>{if(e.key==='ArrowDown'||e.key===' ')next()});
+let startY=0;
+addEventListener('touchstart',e=>startY=e.changedTouches[0].screenY);
+addEventListener('touchend',e=>{if(e.changedTouches[0].screenY-startY<-50)next()});
+
+fetchFreshList().then(list=>{
+  if(!list.length){alert('No videos found – all mirrors down.');return;}
+  vids=list; next();
+  setInterval(next,(vids[0].duration||10)*1000);
+});
+</script>
+</body>
+</html>
