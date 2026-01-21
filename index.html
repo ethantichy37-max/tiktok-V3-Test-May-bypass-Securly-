@@ -18,28 +18,20 @@
 
 <script>
 const COUNT = 10;
-const QUERY  = 'tiktok.com "fyp" filter:links';
+const QUERY = 'tiktok.com "fyp" filter:links';
 
-// ----- 1. try three mirrors in random order -----
-const INSTANCES = [
-  'https://nitter.it',
-  'https://nitter.pussthecat.org',
-  'https://nitter.poast.org'
-];
+/* ---------- use a CORS proxy ---------- */
+const PROXY = 'https://api.allorigins.win/raw?url=';
+const TARGET = encodeURIComponent(`https://nitter.it/search?q=${encodeURIComponent(QUERY)}`);
 
 let idx = 0, vids = [];
 
 async function fetchFreshList(){
-  // shuffle
-  const urls = INSTANCES.sort(()=>Math.random()-0.5);
-  for(const base of urls){
-    try{
-      const html = await fetch(`${base}/search?q=${encodeURIComponent(QUERY)}`).then(r=>r.text());
-      const mp4s = [...new Set([...html.matchAll(/href="(https:\/\/[^"]*\.mp4[^"]*)"/g)].map(m=>m[1]))];
-      if(mp4s.length) return mp4s.slice(0,COUNT);
-    }catch{/* try next mirror */}
-  }
-  return []; // all mirrors failed
+  try{
+    const html = await fetch(PROXY + TARGET).then(r => r.text());
+    const mp4s = [...new Set([...html.matchAll(/href="(https:\/\/[^"]*\.mp4[^"]*)"/g)].map(m=>m[1]))];
+    return mp4s.slice(0, COUNT);
+  }catch{ return []; }
 }
 
 function next(){
@@ -59,7 +51,7 @@ addEventListener('touchstart',e=>startY=e.changedTouches[0].screenY);
 addEventListener('touchend',e=>{if(e.changedTouches[0].screenY-startY<-50)next()});
 
 fetchFreshList().then(list=>{
-  if(!list.length){alert('No videos found – all mirrors down.');return;}
+  if(!list.length){alert('No videos found – proxy or nitter is down.');return;}
   vids=list; next();
   setInterval(next,(vids[0].duration||10)*1000);
 });
